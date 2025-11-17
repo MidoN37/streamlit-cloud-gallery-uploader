@@ -16,9 +16,26 @@ API_SERVICE_NAME_DRIVE = 'drive'
 API_VERSION_DRIVE = 'v3'
 GALLERY_PREFIX = "GALLERY-"
 
-# --- AUTHENTICATION (same as before) ---
+# --- AUTHENTICATION (for Streamlit Cloud) ---
+import base64
+
 @st.cache_resource
 def get_credentials():
+    # Check if running on Streamlit Cloud
+    if hasattr(st, 'secrets'):
+        # Load from secrets
+        creds_json = st.secrets["google_credentials"]["client_secret_json"]
+        token_b64 = st.secrets["google_credentials"]["token_pickle_b64"]
+        
+        # Create the client_secret.json file in the cloud environment
+        with open(CLIENT_SECRET_FILE, "w") as f:
+            f.write(creds_json)
+        
+        # Decode the token and create the token.pickle file
+        with open("token.pickle", "wb") as f:
+            f.write(base64.b64decode(token_b64))
+    
+    # Now, the rest of the original function can run, as the files now exist
     creds = None
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
@@ -27,6 +44,7 @@ def get_credentials():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
+            # This path should not be taken on the cloud, but is a fallback
             flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
         with open('token.pickle', 'wb') as token:
